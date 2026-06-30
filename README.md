@@ -87,24 +87,30 @@ python defense.py --model_name vicuna --attacker custom --defense_off --disable_
 | **Utility** = over-refusal (FRR) | cho input XSTest *benign* xem có bị từ chối nhầm | `--attacker custom` với file XSTest benign, xem tỉ lệ "bị từ chối" |
 | **Utility** = chất lượng | Just-Eval / MT-Bench | `--attacker Just-Eval --GPT_API <key>` ; MT-Bench xem `mt_bench/README.md` |
 | **Efficiency** = Cost | GPU-giờ inference | mỗi item có `time_cost` (giây) trong file json output |
-| Harmful Score 1–5 (optional) | GPT-4 (hoặc Gemini) | bỏ `--disable_GPT_judge`, thêm `--GPT_API <key>` **và `--multi_processing 1`** |
+| Harmful Score 1–5 (optional) | GPT-4 (code gốc) **hoặc Gemini** | GPT-4: bỏ `--disable_GPT_judge` + `--GPT_API <key>` · Gemini: chạy `gemini_judge.py` (xem dưới) |
 
-> ⚠️ **Khi dùng LLM-judge (GPT-4/Gemini) nhớ thêm `--multi_processing 1`.** Path chấm song song mặc định (`multi_processing=20`) của repo gốc **KHÔNG truyền `--GPT_API` xuống các worker** (bug gốc ở `safe_eval.py` hàm `single_resp`) → judge sẽ lỗi nếu không có sẵn env `OPENAI_API_KEY`. Đặt `--multi_processing 1` thì key được truyền đúng. *(Việc đo DSR ở mục 3 dùng `--disable_GPT_judge` nên KHÔNG dính lỗi này.)*
+> **Dùng Gemini làm judge — qua file RIÊNG `gemini_judge.py` (KHÔNG đụng code tác giả):**
+> Trước hết chạy `defense.py` như mục 3 (có `--disable_GPT_judge`) để sinh file output JSON, rồi:
+> ```bash
+> export GEMINI_API_KEY="<key>"        # hoặc nạp từ file .env
+> python gemini_judge.py --input exp/exp_outputs/<thư-mục-vừa-tạo>/<file>.json
+> ```
+> Nó đọc file output, chấm **Harmful Score 1–5** bằng Gemini (đã **tắt safety-filter** để Gemini chịu chấm nội dung harmful), in điểm trung bình + phân bố, lưu ra `<file>_gemini.json`. DSR (mục 3) vẫn dùng DictJudge offline, độc lập với cái này.
 
-> Muốn dùng **Gemini** thay GPT-4 làm judge: sửa class `GPT` trong `utils/model.py` (lib `google-generativeai` đã có trong requirements); `GPTJudge` đã hỗ trợ policy `Google` sẵn.
+> ℹ️ Judge GPT-4 gốc (`--GPT_API`) khi để `--multi_processing>1` (mặc định 20) dính 1 bug của repo gốc: **không truyền key xuống worker** → nếu dùng GPT-4 judge thì thêm `--multi_processing 1`. (Mình KHÔNG sửa code tác giả; chỉ ghi chú để anh biết. Dùng Gemini qua `gemini_judge.py` thì không dính.)
 
 ---
 
 ## 6. Đã sửa gì so với repo gốc (để anh diff nhanh)
 
-- **`requirements.txt`**: pin lại version cho khớp `transformers==4.28.1` — `datasets==2.14.6`, `huggingface_hub==0.16.4`,
-  `accelerate==0.25.0`, `numpy==1.26.4`, `tokenizers==0.13.3`. (File gốc để trống `datasets`/`accelerate` → pip kéo bản mới
-  nhất, lệch version, vỡ `load_dataset`.) PyTorch để anh tự cài đúng CUDA (xem mục 2).
-- **`datasets/custom_prompts.json`**: thay bằng **20 câu sample** (id/goal/prompt) để chạy được ngay; file mẫu gốc chỉ có 1 câu.
-- **`exp/defense.py`**: sửa 1 dòng `prompt["goal"]` → `prompt.get("goal", user_prompt)` để khỏi **KeyError** khi data
-  không có field `goal` (bug nhỏ của path `custom`/`AdvBench`); thêm vài comment đầu file. **Không đụng** thuật toán.
-- **`README-goc.md`**: README gốc của tác giả (giữ nguyên).
-- Còn lại (thuật toán `utils/safe_decoding.py`, expert LoRA `lora_modules/`, peft bundle `peft/`…) **giữ nguyên**.
+> ✅ **Code `.py` của tác giả = GIỮ NGUYÊN 100%** — `exp/defense.py`, `exp/safe_eval.py`, `utils/model.py`, `utils/safe_decoding.py` (và mọi file `.py` khác) đều **y hệt bản gốc upstream**. Mình chỉ chỉnh config/data + **thêm file MỚI**, KHÔNG sửa 1 dòng code thuật toán.
+
+- **`requirements.txt`** *(config)*: pin version cho khớp `transformers==4.28.1` — `datasets==2.14.6`, `huggingface_hub==0.16.4`,
+  `pyarrow==12.0.1`, `accelerate==0.25.0`, `numpy==1.26.4`, `tokenizers==0.13.3`, `google-generativeai==0.8.6`. (Bản gốc để trống
+  `datasets`/`accelerate` → pip kéo bản mới nhất, lệch version, vỡ `load_dataset`.) PyTorch tự cài đúng CUDA (xem mục 2).
+- **`datasets/custom_prompts.json`** *(data)*: thay bằng **20 câu sample** (id/goal/prompt) để chạy được ngay; file mẫu gốc chỉ có 1 câu.
+- **File MỚI thêm (không đụng file gốc):** `gemini_judge.py` (chấm Harmful Score bằng Gemini, hậu kỳ) · `README.md` (file này) · `run_on_colab.ipynb` (chạy thử trên Colab) · `README-goc.md` (README gốc tác giả, đổi tên để giữ lại).
+- Mọi thứ còn lại (`exp/`, `utils/`, `lora_modules/`, `peft/`, `mt_bench/`, `just_eval/`…) **giữ nguyên bản gốc**.
 
 ---
 

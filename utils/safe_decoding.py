@@ -1,13 +1,3 @@
-# =============================================================================
-# safe_decoding.py — TRÁI TIM của SafeDecoding (can thiệp lúc DECODING).
-# Mỗi bước sinh token, chạy SONG SONG model gốc ('base') và 'expert' (= base + LoRA
-# an toàn) trên cùng input (nhân đôi batch qua adapter_names=['base','expert']):
-#   Step 1 (Sample Space): lấy GIAO top-token của 2 model -> tập ứng viên (>= num_common_tokens).
-#   Step 2 (Steer prob)  : prob_moi = prob_base + alpha*(prob_expert - prob_base) -> đẩy token an toàn lên.
-#   Step 3 (Decode)      : chỉ áp dụng cho 'first_m' token ĐẦU; token sau sinh thường (adapter 'base').
-# safedecoding_lora(): sinh CÓ phòng thủ. generate_baseline(): sinh thường (cho baseline/không phòng thủ).
-# Lưu ý: code hardcode .cuda() -> cần GPU NVIDIA.
-# =============================================================================
 import torch
 import numpy as np
 import copy

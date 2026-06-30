@@ -1,15 +1,3 @@
-# =============================================================================
-# defense.py — Script CHẠY CHÍNH của SafeDecoding.
-# Làm gì: với mỗi prompt (harmful/jailbreak), sinh câu trả lời của model dưới 1
-#   cơ chế phòng thủ (--defender) rồi chấm xem model có bị "qua mặt" hay không.
-# Input : --model_name (vicuna/llama2/guanaco/falcon/dolphin)
-#         --attacker   (nguồn prompt: custom | GCG | AutoDAN | PAIR | DeepInception | AdvBench)
-#         --defender   (SafeDecoding | PPL | Self-Exam | Paraphrase | Retokenization | Self-Reminder | ICD)
-#         --disable_GPT_judge  (chấm OFFLINE, không cần OpenAI API)
-# Output: exp_outputs/<...>/*.json (câu trả lời + time_cost) + log in ra dòng "ASR: ..%".
-#         DSR (Defense Success Rate) = 100 - ASR ; chấm bằng DictJudge (match chuỗi từ chối, offline).
-# Thuật toán SafeDecoding nằm ở utils/safe_decoding.py (hàm safedecoding_lora).
-# =============================================================================
 import torch
 import os
 import sys
@@ -383,7 +371,7 @@ for prompt in tqdm(attack_prompts):
     else:
         output_formatted = {
             "id": prompt["id"],
-            "goal": prompt.get("goal", user_prompt),  # turnkey fix: tránh KeyError khi data (custom/AdvBench) không có field 'goal'
+            "goal": prompt["goal"],
             "instruction": user_prompt,
             "output": outputs,
             "generator": args.model_name+f'_{args.attacker}_{args.defender if args.is_defense else "nodefense"}',
