@@ -97,10 +97,21 @@ python defense.py --model_name vicuna --attacker custom --defense_off --disable_
 | Trục | Đo bằng | Lệnh / ghi chú |
 |---|---|---|
 | **Security** = DSR | DictJudge (offline) | mục 3, đọc dòng `ASR` → `DSR = 100 − ASR` |
-| **Utility** = over-refusal (FRR) | cho input XSTest *benign* xem có bị từ chối nhầm | `--attacker custom` với file XSTest benign, xem tỉ lệ "bị từ chối" |
+| **Utility** = over-refusal (FRR) | XSTest 250 safe prompts, string-match offline | `python exp/run_utility_xstest.py --num 50` (hoặc `--full`) → in **FRR** + xuất CSV có cột `response` (xem note dưới) |
 | **Utility** = chất lượng | Just-Eval / MT-Bench | `--attacker Just-Eval --GPT_API <key>` ; MT-Bench xem `mt_bench/README.md` |
 | **Efficiency** = Cost | GPU-giờ inference | mỗi item có `time_cost` (giây) trong file json output |
 | Harmful Score 1–5 (optional) | GPT-4 (code gốc) **hoặc Gemini** | GPT-4: bỏ `--disable_GPT_judge` + `--GPT_API <key>` · Gemini: chạy `gemini_judge.py` (xem dưới) |
+
+> **Utility XSTest (turnkey, mục #2 benchmark nhóm) — file RIÊNG `exp/run_utility_xstest.py`:**
+> ```bash
+> cd exp
+> python run_utility_xstest.py --num 50      # 50 prompt sample; --full = cả 250; --defense_off = đối chứng
+> ```
+> Cho XSTest *safe* prompt (250 câu lành-tính-nhưng-trông-độc-hại) qua **model ĐÃ phòng thủ** (SafeDecoding),
+> xuất `xstest_safedecoding_responses.csv` (cột `[id,prompt,type,label,focus,note,response]`) + in **FRR**
+> (tỉ lệ câu lành tính bị từ chối, **thấp = tốt**) bằng string-match offline đúng luật XSTest. Đổ CSV này vào
+> **bản sao** notebook chấm điểm chung `honglchnguyn87/xstest` (đổi `CSV_PATH`) để chạy cell keyword + LLM-judge
+> — **KHÔNG chạy** cell *"Generate response GEMINI"* (response phải từ model phòng thủ này, không phải Gemini).
 
 > **Dùng Gemini làm judge — qua file RIÊNG `gemini_judge.py` (KHÔNG đụng code tác giả):**
 > Trước hết chạy `defense.py` như mục 3 (có `--disable_GPT_judge`) để sinh file output JSON, rồi:
@@ -122,7 +133,7 @@ python defense.py --model_name vicuna --attacker custom --defense_off --disable_
   `pyarrow==12.0.1`, `accelerate==0.25.0`, `numpy==1.26.4`, `tokenizers==0.13.3`, `google-generativeai==0.8.6`. (Bản gốc để trống
   `datasets`/`accelerate` → pip kéo bản mới nhất, lệch version, vỡ `load_dataset`.) PyTorch tự cài đúng CUDA (xem mục 2).
 - **`datasets/custom_prompts.json`** *(data)*: thay bằng **20 câu sample** (id/goal/prompt) để chạy được ngay; file mẫu gốc chỉ có 1 câu.
-- **File MỚI thêm (không đụng file gốc):** `gemini_judge.py` (chấm Harmful Score bằng Gemini, hậu kỳ) · `README.md` (file này) · `run_on_colab.ipynb` (chạy thử trên Colab) · `README-goc.md` (README gốc tác giả, đổi tên để giữ lại).
+- **File MỚI thêm (không đụng file gốc):** `gemini_judge.py` (chấm Harmful Score bằng Gemini, hậu kỳ) · `exp/run_utility_xstest.py` (sinh response XSTest qua model phòng thủ + chấm **FRR** offline — Utility/over-refusal) · `datasets/XSTest_SafePrompt.csv` (250 prompt XSTest safe; auto-download nếu thiếu) · `README.md` (file này) · `run_on_colab.ipynb` (chạy thử trên Colab/Kaggle) · `README-goc.md` (README gốc tác giả, đổi tên để giữ lại).
 - Mọi thứ còn lại (`exp/`, `utils/`, `lora_modules/`, `peft/`, `mt_bench/`, `just_eval/`…) **giữ nguyên bản gốc**.
 
 ---
