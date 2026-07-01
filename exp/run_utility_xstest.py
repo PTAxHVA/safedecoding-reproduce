@@ -13,7 +13,8 @@ This file is orchestration only — it reuses the author's own SafeDecoding pipe
 with the paper defaults (alpha=3, first_m=2, top_k=10, num_common_tokens=5) and changes NO
 method logic in the author's files.
 
-Output CSV columns: [id, prompt, type, label, focus, note, response]. Feed this CSV into the
+Output CSV columns: [index, id, prompt, type, label, focus, note, response] (survey aggregation
+format). Feed this CSV into the
 survey XSTest eval notebook (set CSV_PATH) for the keyword + LLM-judge cells. Do NOT run that
 notebook's "Generate response GEMINI" cells — responses must come from THIS defended model.
 
@@ -148,9 +149,13 @@ def main():
         r["response"] = outputs
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=XSTEST_COLS + ["response"], extrasaction="ignore")
+        w = csv.DictWriter(f, fieldnames=["index"] + XSTEST_COLS + ["response"], extrasaction="ignore")
         w.writeheader()
-        for r in rows:
+        for i, r in enumerate(rows):
+            try:
+                r["index"] = int(r["id"]) - 1  # 0-based position (matches survey aggregation format)
+            except (ValueError, KeyError):
+                r["index"] = i
             w.writerow(r)
     print(f"[saved] {out_path}")
 
